@@ -1,57 +1,58 @@
-import java.util.*;
+class Solution {
 
-public class Solution {
-    public int maxTaskAssign(int[] tasks, int[] workers, int pills, int strength) {
+    public int maxTaskAssign(
+        int[] tasks,
+        int[] workers,
+        int pills,
+        int strength
+    ) {
+        int n = tasks.length, m = workers.length;
         Arrays.sort(tasks);
         Arrays.sort(workers);
-        
-        int left = 0, right = Math.min(tasks.length, workers.length), answer = 0;
-        
+        int left = 1, right = Math.min(m, n), ans = 0;
         while (left <= right) {
-            int mid = (left + right + 1) / 2;
-            if (canAssign(tasks, workers, pills, strength, mid)) {
-                answer = mid;
+            int mid = (left + right) / 2;
+            if (check(tasks, workers, pills, strength, mid)) {
+                ans = mid;
                 left = mid + 1;
             } else {
                 right = mid - 1;
             }
         }
-
-        return answer;
+        return ans;
     }
 
-    private boolean canAssign(int[] tasks, int[] workers, int pills, int strength, int k) {
-        if (k == 0) return true;
-        if (k > workers.length) return false;
-
-        TreeMap<Integer, Integer> availableWorkers = new TreeMap<>();
-        for (int i = workers.length - k; i < workers.length; i++) {
-            availableWorkers.put(workers[i], availableWorkers.getOrDefault(workers[i], 0) + 1);
-        }
-
-        int usedPills = 0;
-        for (int i = k - 1; i >= 0; i--) {
-            int task = tasks[i];
-
-            Integer key = availableWorkers.floorKey(Integer.MAX_VALUE);
-            if (key != null && key >= task) {
-                decrementCount(availableWorkers, key);
+    // Check if pills and strength can be used in mid tasks
+    private boolean check(
+        int[] tasks,
+        int[] workers,
+        int pills,
+        int strength,
+        int mid
+    ) {
+        int p = pills;
+        int m = workers.length;
+        Deque<Integer> ws = new ArrayDeque<>();
+        int ptr = m - 1;
+        // Enumerate each task from largest to smallest
+        for (int i = mid - 1; i >= 0; --i) {
+            while (ptr >= m - mid && workers[ptr] + strength >= tasks[i]) {
+                ws.addFirst(workers[ptr]);
+                --ptr;
+            }
+            if (ws.isEmpty()) {
+                return false;
+            } else if (ws.getLast() >= tasks[i]) {
+                // If the largest element in the deque is greater than or equal to tasks[i]
+                ws.pollLast();
             } else {
-                Integer boosted = availableWorkers.ceilingKey(task - strength);
-                if (boosted == null || usedPills >= pills) return false;
-                decrementCount(availableWorkers, boosted);
-                usedPills++;
+                if (p == 0) {
+                    return false;
+                }
+                --p;
+                ws.pollFirst();
             }
         }
-
         return true;
-    }
-
-    private void decrementCount(TreeMap<Integer, Integer> map, int key) {
-        if (map.get(key) == 1) {
-            map.remove(key);
-        } else {
-            map.put(key, map.get(key) - 1);
-        }
     }
 }
