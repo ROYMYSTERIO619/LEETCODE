@@ -1,116 +1,62 @@
-class Pair{
-    long cost;
-    String node;
-    Pair(long cost,String node){
-        this.cost=cost;
-        this.node=node;
-    }
-}
 class Solution {
-    //adj list is map here
-    HashMap<String,List<Pair>> adj=new HashMap<>();
-    Long M=(long)1e10;
-    String sourceStr;
-    String targetStr;
-    Map<String, Map<String, Long>> dijkstraMemo = new HashMap<>();
-    long[] dpMemo;
-    //set to store the length of unique strings given so that we can have check on min 
-    //possible cost by iterating on each
-    TreeSet<Integer> set=new TreeSet<>();
-
-
-
-    long dijkstra(String start,String end ){
-        if (dijkstraMemo.containsKey(start) &&
-            dijkstraMemo.get(start).containsKey(end)) {
-            return dijkstraMemo.get(start).get(end);
+    private int index = 0;
+    public long minimumCost(String source, String target, String[] original, String[] changed, int[] cost) {
+        TrieNode root = new TrieNode();
+        for(String s : original) insert(s, root);
+        for(String s : changed) insert(s, root);
+        int[][] dist = new int[index][index];
+        for(int i = 0; i < index; i++) {
+            Arrays.fill(dist[i], Integer.MAX_VALUE);
+            dist[i][i] = 0;
         }
-
-        PriorityQueue<Pair> pq=new PriorityQueue<>(Comparator.comparingLong(p -> p.cost));
-
-        //for storing min path sum
-        Map<String, Long> res = new HashMap<>();
-        res.put(start, 0L);
-
-        pq.add(new Pair(0,start));
-        
-        while(!pq.isEmpty()){
-            Pair curr=pq.poll();
-            long currCost = curr.cost;
-            String node = curr.node;
-
-            if(node.equals(end)) break;
-            if (!adj.containsKey(node))
-                continue;
-            
-            for(Pair edge:adj.get(node)){
-                String adjNode = edge.node;
-                long edgeCost = edge.cost;
-
-                long newCost=currCost+edgeCost;
-                if(!res.containsKey(adjNode) || newCost<res.get(adjNode)){
-                    res.put(adjNode,newCost);
-                    pq.offer(new Pair(newCost,adjNode));
+        for(int i = 0; i < cost.length; i++) {
+            int x = getIndex(original[i], root), y = getIndex(changed[i], root);
+            if(cost[i] < dist[x][y]) dist[x][y] = cost[i];
+        }
+        for(int i = 0; i < index; i++) {
+            for(int j = 0; j < index; j++) {
+                if(dist[j][i] != Integer.MAX_VALUE) {
+                    for(int k = 0; k < index; k++) {
+                        if(dist[i][k] != Integer.MAX_VALUE && dist[j][i] + dist[i][k] < dist[j][k]) dist[j][k] = dist[j][i] + dist[i][k];
+                    }
                 }
             }
         }
-        long finalCost=res.getOrDefault(end,M);
-//we can use  dijstra algorithm as it is used again if multiple frq occurs
-         dijkstraMemo
-            .computeIfAbsent(start, k -> new HashMap<>())
-            .put(end, finalCost);
-
-        return finalCost;
-    } 
-    //main solution logic
-    long solve(int idx){
-        if(idx>=sourceStr.length()) return 0;
-
-        if (dpMemo[idx] != -1)
-            return dpMemo[idx];
-
-        long minC=M;
-
-        //we have two ways
-        //first is to skip the ith char as it is same already & move to next
-        // second is to take that also in our substring
-        if(sourceStr.charAt(idx)==targetStr.charAt(idx))
-            minC=Math.min(minC,solve(idx+1));
-        for(int l:set){
-            if(idx+l>sourceStr.length()){
-                break;
+        char[] arr1 = source.toCharArray(), arr2 = target.toCharArray();
+        int n = arr1.length;
+        long[] dp = new long[n + 1];
+        Arrays.fill(dp, Long.MAX_VALUE);
+        dp[0] = 0;
+        for(int i = 0; i < n; i++) {
+            if(dp[i] == Long.MAX_VALUE) continue;
+            TrieNode node1 = root, node2 = root;
+            if(arr1[i] == arr2[i] && dp[i] < dp[i + 1]) dp[i + 1] = dp[i];
+            for(int j = i; j < n; j++) {
+                node1 = node1.next[arr1[j] - 'a'];
+                node2 = node2.next[arr2[j] - 'a'];
+                if(node1 == null || node2 == null) break;
+                if(node1.index != -1 && node2.index != -1 && dist[node1.index][node2.index] != Integer.MAX_VALUE && dist[node1.index][node2.index] + dp[i] < dp[j + 1]) dp[j + 1] = dist[node1.index][node2.index] + dp[i];
             }
-            String srcSub=sourceStr.substring(idx,idx+l);
-            String tgtSub=targetStr.substring(idx,idx+l);
-
-            if(!adj.containsKey(srcSub)) continue;
-
-            //if contains use dijkstra for min path cost
-            long pCost=dijkstra(srcSub,tgtSub);
-            if(pCost==M) continue;
-            minC=Math.min(minC,pCost+solve(idx+l));
         }
-        return dpMemo[idx] = minC;
+        return dp[n] == Long.MAX_VALUE ? -1 : dp[n];
     }
-
-
-    public long minimumCost(String source, String target, String[] original, String[] changed, int[] cost) {
-        int n= source.length();
-        sourceStr=source;
-        targetStr=target;
-
-        dpMemo = new long[10001];
-        Arrays.fill(dpMemo, -1);
-
-        //create adj list and add the unique strings length
-        for(int i=0;i<original.length;i++){
-            adj.computeIfAbsent(original[i],k->new ArrayList<>())
-               .add(new Pair(cost[i],changed[i]));
-            set.add(original[i].length());
+    private void insert(String s, TrieNode root) {
+        for(int i = 0; i < s.length(); i++) {
+            int current = s.charAt(i) - 'a';
+            if(root.next[current] == null) root.next[current] = new TrieNode();
+            root = root.next[current];
         }
-
-        long res=solve(0);
-        return res== M?-1:res;
-
+        if(root.index == -1) root.index = index++;
     }
+    private int getIndex(String s, TrieNode root) {
+        for(int i = 0; i < s.length(); i++) {
+            int current = s.charAt(i) - 'a';
+            root = root.next[current];
+        }
+        return root.index;
+    }
+}
+class TrieNode {
+    TrieNode[] next = new TrieNode[26];
+    int index = -1;
 }
